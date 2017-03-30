@@ -10,7 +10,7 @@ namespace DotHook
 {
     static class CodeInjector
     {
-        static public void InjectMethod(TypeDefinition targetClass, MethodDefinition sourceMethod, string methodName=null)
+        static public MethodDefinition InjectMethod(TypeDefinition targetClass, MethodDefinition sourceMethod, string methodName=null)
         {
             if (methodName == null)
                 methodName = sourceMethod.Name;
@@ -18,6 +18,7 @@ namespace DotHook
             targetClass.Methods.Add(injectMethod);
             injectMethod.DeclaringType = targetClass;
             FixReferences(injectMethod);
+            return injectMethod;
         }
 
         static public void HookMethod(MethodDefinition targetMethod, MethodDefinition hookMethod, ReferenceResolver resolver=null, string hookPrefix="__hooked__")
@@ -28,21 +29,19 @@ namespace DotHook
                 resolver.ScanAssembly(targetMethod.DeclaringType.Module.Assembly);
             }
 
-            var injectMethod = CloneMethod(hookMethod);
+            var injectMethod = InjectMethod(targetMethod.DeclaringType, hookMethod);
             // rename original method
             injectMethod.Name = targetMethod.Name;
             targetMethod.Name = hookPrefix + targetMethod.Name;
-            // add the new method
-            targetMethod.DeclaringType.Methods.Add(injectMethod);
             // replace the original method with the new one
-            resolver.ReplaceAllReferences(targetMethod, hookMethod);
+            resolver.ReplaceAllReferences(targetMethod, injectMethod);
             // process self-calls
             for (int i = 0; i < injectMethod.Body.Instructions.Count; ++i)
             {
                 var ins = injectMethod.Body.Instructions[i];
                 if (ins.OpCode == OpCodes.Call || ins.OpCode == OpCodes.Callvirt)
                 {
-                    if (ins.Operand == injectMethod)
+                    if ((ins.Operand as MethodReference).FullName == hookMethod.FullName)
                     {
                         ins.Operand = targetMethod;
                     }
@@ -53,11 +52,19 @@ namespace DotHook
         static public MethodDefinition CloneMethod(MethodDefinition source)
         {
             var newMethod = new MethodDefinition(source.Name, source.Attributes, source.ReturnType);
+
+            newMethod.IsPublic = true;
+            
+            foreach (var param in source.Parameters)
+                newMethod.Parameters.Add(param);
+            foreach (var variable in source.Body.Variables)
+                newMethod.Body.Variables.Add(variable);
             var il = newMethod.Body.GetILProcessor();
             // copy all instructions
             foreach(var sourceIns in source.Body.Instructions)
             {
-                var newInstruction = il.Create(sourceIns.OpCode);
+                var newInstruction = il.Create(OpCodes.Nop);
+                newInstruction.OpCode = sourceIns.OpCode;
                 newInstruction.Operand = sourceIns.Operand;
                 il.Append(newInstruction);
             }
@@ -67,7 +74,8 @@ namespace DotHook
             {
                 if (ins.Operand is Instruction)
                 {
-                    ins.Operand = newInstructions[(ins.Operand as Instruction).Offset];
+                    ins.Operand = newInstructions[source.Body.Instructions.IndexOf(ins.Operand as Instruction)];
+                    
                 }
             }
             return newMethod;
@@ -76,6 +84,9 @@ namespace DotHook
         static private void FixReferences(MethodDefinition method)
         {
             var module = method.Module;
+
+            method.ReturnType = module.ImportReference(method.ReturnType);
+
             for (int i=0; i<method.Body.Instructions.Count; ++i)
             {
                 var ins = method.Body.Instructions[i];
@@ -92,6 +103,11 @@ namespace DotHook
                     ins.Operand = module.ImportReference(ins.Operand as FieldReference);
                 }
             }
+
+            foreach (var param in method.Parameters)
+                param.ParameterType = module.ImportReference(param.ParameterType);
+            foreach (var variable in method.Body.Variables)
+                variable.VariableType = module.ImportReference(variable.VariableType);
         }
     }
 }

@@ -23,19 +23,21 @@ namespace DotHook
             inspector.ScanAssembly(typeof(Console).Assembly.Location);
 
             var targetMethod = inspector.FindMethodByName("Target.Target", "Add");
-            Func<int, int, int> hook = (new Program()).Hook;
+            Func<int, int> hook = (new Program()).Hook;
             var injectingMethod = TypeInspector.GetDefinitionByMethodInfo(hook.Method);
-            ILInjector.HookBeforeCallReturn(targetMethod, injectingMethod);
+            CodeInjector.HookMethod(targetMethod, injectingMethod);
 
             
             targetAsm.Write(File.OpenWrite("Target.Hooked.exe"));
         }
 
-        int Hook(int b, int oldReturn)
+        int Hook(int b)
         {
             var self = (Target.Target)(object)this;
-            Console.WriteLine("m_a={0}, b={1}, m_a+b={2}", self.m_a, b, oldReturn);
-            return oldReturn;
+            Console.WriteLine("m_a={0}, b={1}", self.m_a, b);
+            int result = Hook(b);
+            Console.WriteLine("Result={0}", result);
+            return result;
         }
     }
 }
