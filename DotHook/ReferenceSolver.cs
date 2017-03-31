@@ -50,6 +50,16 @@ namespace DotHook
             public Instruction instruction;
             public InstructionTypeResolveResult(MethodDefinition m, Instruction ins) { method = m; instruction = ins; }
         }
+        public class BaseTypeTypeResolveResult : ITypeResolveResult
+        {
+            public TypeDefinition type;
+            public BaseTypeTypeResolveResult(TypeDefinition t) { type = t; }
+        }
+        public class InterfaceTypeResolveResult : ITypeResolveResult
+        {
+            public TypeDefinition type;
+            public InterfaceTypeResolveResult(TypeDefinition t) { type = t; }
+        }
 
 
         public List<AssemblyDefinition> AssemblyList { get; private set; }
@@ -160,6 +170,11 @@ namespace DotHook
             var result = new List<ITypeResolveResult>();
             foreach (var type in TypeList)
             {
+                if (ReferenceEquals(type.BaseType, target))
+                    result.Add(new BaseTypeTypeResolveResult(type));
+                foreach (var @interface in type.Interfaces)
+                    if (ReferenceEquals(@interface.InterfaceType, target))
+                        result.Add(new InterfaceTypeResolveResult(type));
                 foreach (var method in type.Methods)
                 {
                     if (ReferenceEquals(target, method.ReturnType))
