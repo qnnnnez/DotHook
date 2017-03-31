@@ -45,7 +45,15 @@ namespace DotHook
         {
             public Injected()
             {
-                Console.WriteLine("class created!");
+                try
+                {
+                    Console.WriteLine("class created");
+                    throw new ArgumentException();
+                }
+                catch
+                {
+                    Console.WriteLine("an exception throwed");
+                }
             }
         }
     }

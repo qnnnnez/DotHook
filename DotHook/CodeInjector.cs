@@ -210,6 +210,18 @@ namespace DotHook
                     ins.Operand = newInstructions[source.Body.Instructions.IndexOf(ins.Operand as Instruction)];
                 }
             }
+            // copy all exception handlers
+            foreach (var handler in source.Body.ExceptionHandlers)
+            {
+                var newHandler = new ExceptionHandler(handler.HandlerType);
+                newHandler.CatchType = handler.CatchType;
+                newHandler.FilterStart = handler.FilterStart;
+                newHandler.HandlerStart = handler.HandlerStart;
+                newHandler.HandlerEnd = handler.HandlerEnd;
+                newHandler.TryStart = handler.TryStart;
+                newHandler.TryEnd = handler.TryEnd;
+                newMethod.Body.ExceptionHandlers.Add(newHandler);
+            }
             return newMethod;
         }
 
@@ -240,6 +252,8 @@ namespace DotHook
                 param.ParameterType = module.ImportReference(param.ParameterType);
             foreach (var variable in method.Body.Variables)
                 variable.VariableType = module.ImportReference(variable.VariableType);
+            foreach (var handler in method.Body.ExceptionHandlers)
+                handler.CatchType = module.ImportReference(handler.CatchType);
         }
 
         static public void FixReferences(TypeDefinition type)

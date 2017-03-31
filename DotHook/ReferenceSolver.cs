@@ -50,6 +50,12 @@ namespace DotHook
             public TypeDefinition type;
             public InterfaceResolveResult(TypeDefinition t) { type = t; }
         }
+        public class CatchTypeResolveResult : IMetaResolveResult
+        {
+            public MethodDefinition method;
+            public ExceptionHandler handler;
+            public CatchTypeResolveResult(MethodDefinition m, ExceptionHandler h) { method = m; handler = h; }
+        }
 
 
         public List<AssemblyDefinition> AssemblyList { get; private set; }
@@ -206,6 +212,10 @@ namespace DotHook
                     foreach (var local in method.Body.Variables)
                         if (ReferenceEquals(target, local))
                             result.Add(new LocalVarResolveResult(method, local));
+
+                    foreach (var handler in method.Body.ExceptionHandlers)
+                        if (ReferenceEquals(target, handler.CatchType))
+                            result.Add(new CatchTypeResolveResult(method, handler));
                 }
 
                 foreach (var field in type.Fields)
