@@ -30,6 +30,7 @@ namespace DotHook
             }
 
             var injectMethod = InjectMethod(targetMethod.DeclaringType, hookMethod);
+            injectMethod.Attributes = targetMethod.Attributes;
             // rename original method
             injectMethod.Name = targetMethod.Name;
             targetMethod.Name = hookPrefix + targetMethod.Name;
@@ -52,8 +53,6 @@ namespace DotHook
         static public MethodDefinition CloneMethod(MethodDefinition source)
         {
             var newMethod = new MethodDefinition(source.Name, source.Attributes, source.ReturnType);
-
-            newMethod.IsPublic = true;
             
             foreach (var param in source.Parameters)
                 newMethod.Parameters.Add(param);
@@ -75,7 +74,6 @@ namespace DotHook
                 if (ins.Operand is Instruction)
                 {
                     ins.Operand = newInstructions[source.Body.Instructions.IndexOf(ins.Operand as Instruction)];
-                    
                 }
             }
             return newMethod;
