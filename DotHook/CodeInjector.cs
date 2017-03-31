@@ -14,12 +14,48 @@ namespace DotHook
         {
             if (methodName == null)
                 methodName = sourceMethod.Name;
-            var injectMethod = CloneMethod(sourceMethod);
-            injectMethod.Name = methodName;
-            targetClass.Methods.Add(injectMethod);
-            injectMethod.DeclaringType = targetClass;
-            FixReferences(injectMethod);
-            return injectMethod;
+            var newMethod = CloneMethod(sourceMethod);
+            newMethod.Name = methodName;
+            targetClass.Methods.Add(newMethod);
+            newMethod.DeclaringType = targetClass;
+            FixReferences(newMethod);
+            return newMethod;
+        }
+
+        static public TypeDefinition InjectClass(ModuleDefinition targetModule, TypeDefinition sourceClass, string className = null)
+        {
+            if (className == null)
+                className = sourceClass.Name;
+            var newClass = CloneClass(sourceClass);
+            newClass.Name = className;
+
+            var isPublic = IsClassPublic(sourceClass);
+            newClass.IsNestedFamily = false;
+            newClass.IsNestedPrivate = false;
+            newClass.IsNestedPublic = false;
+            newClass.IsPublic = isPublic;
+
+            newClass.DeclaringType = null;
+            targetModule.Types.Add(newClass);
+            FixReferences(newClass);
+            return newClass;
+        }
+
+        static public TypeDefinition InjectClass(TypeDefinition targetClass, TypeDefinition sourceClass, string className = null)
+        {
+            if (className == null)
+                className = sourceClass.Name;
+            var newClass = CloneClass(sourceClass);
+            newClass.Name = className;
+
+            var isPublic = IsClassPublic(sourceClass);
+            newClass.IsPublic = false;
+            newClass.IsNestedPublic = isPublic;
+
+            newClass.DeclaringType = targetClass;
+            targetClass.NestedTypes.Add(newClass);
+            FixReferences(newClass);
+            return newClass;
         }
 
         static public void HookMethod(MethodDefinition targetMethod, MethodDefinition hookMethod, ReferenceResolver resolver = null, string hookPrefix = "__hooked__")
@@ -105,6 +141,41 @@ namespace DotHook
             }
         }
 
+        static public TypeDefinition CloneClass(TypeDefinition source)
+        {
+            var newClass = new TypeDefinition(source.Namespace, source.Name, source.Attributes);
+
+            newClass.BaseType = source.BaseType;
+
+            foreach (var @interface in source.Interfaces)
+                newClass.Interfaces.Add(@interface);
+
+            foreach (var field in source.Fields)
+            {
+                var newField = new FieldDefinition(field.Name, field.Attributes, field.FieldType);
+                newField.Constant = field.Constant;
+                newField.InitialValue = field.InitialValue;
+                newField.DeclaringType = newClass;
+                newClass.Fields.Add(newField);
+            }
+
+            foreach (var method in source.Methods)
+            {
+                var newMethod = CloneMethod(method);
+                newMethod.DeclaringType = newClass;
+                newClass.Methods.Add(newMethod);
+            }
+
+            foreach (var @class in source.NestedTypes)
+            {
+                var newNestedClass = CloneClass(@class);
+                newNestedClass.DeclaringType = newClass;
+                newClass.NestedTypes.Add(newNestedClass);
+            }
+
+            return newClass;
+        }
+
         static public MethodDefinition CloneMethod(MethodDefinition source)
         {
             var newMethod = new MethodDefinition(source.Name, source.Attributes, source.ReturnType);
@@ -112,9 +183,15 @@ namespace DotHook
             newMethod.HasThis = source.HasThis;
 
             foreach (var param in source.Parameters)
-                newMethod.Parameters.Add(param);
+            {
+                var newParam = new ParameterDefinition(param.Name, param.Attributes, param.ParameterType);
+                newMethod.Parameters.Add(newParam);
+            }
             foreach (var variable in source.Body.Variables)
-                newMethod.Body.Variables.Add(variable);
+            {
+                var newVariable = new VariableDefinition(variable.VariableType);
+                newMethod.Body.Variables.Add(newVariable);
+            }
             var il = newMethod.Body.GetILProcessor();
             // copy all instructions
             foreach (var sourceIns in source.Body.Instructions)
@@ -136,7 +213,7 @@ namespace DotHook
             return newMethod;
         }
 
-        static private void FixReferences(MethodDefinition method)
+        static public void FixReferences(MethodDefinition method)
         {
             var module = method.Module;
 
@@ -163,6 +240,32 @@ namespace DotHook
                 param.ParameterType = module.ImportReference(param.ParameterType);
             foreach (var variable in method.Body.Variables)
                 variable.VariableType = module.ImportReference(variable.VariableType);
+        }
+
+        static public void FixReferences(TypeDefinition type)
+        {
+            var module = type.Module;
+            if (module == null)
+                throw new ArgumentException("This type is not attached to a module.");
+
+            type.BaseType = module.ImportReference(type.BaseType);
+
+            foreach (var field in type.Fields)
+                field.FieldType = module.ImportReference(field.FieldType);
+
+            foreach (var method in type.Methods)
+                FixReferences(method);
+
+            foreach (var nested in type.NestedTypes)
+                FixReferences(nested);
+        }
+
+        static public bool IsClassPublic(TypeDefinition type)
+        {
+            if (type.IsNested)
+                return type.IsNestedPublic;
+            else
+                return type.IsPublic;
         }
     }
 }

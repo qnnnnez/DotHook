@@ -22,9 +22,9 @@ namespace DotHook
             inspector.ScanAssembly(typeof(Program).Assembly.Location);
             inspector.ScanAssembly(typeof(Console).Assembly.Location);
 
-            var targetField = targetAsm.MainModule.Types.Single(t => t.Name == "Target").Fields.Single(f => f.Name == "m_a");
-            CodeInjector.HookFieldRead(targetField, TypeInspector.GetDefinitionByMethodInfo(new Func<Target.Target, int>(HookRead).Method));
-            CodeInjector.HookFieldWrite(targetField, TypeInspector.GetDefinitionByMethodInfo(new Action<Target.Target, int>(HookWrite).Method));
+            var targetClass = TypeInspector.GetDefinitionByType(typeof(Injected));
+            var injectedClass = CodeInjector.InjectClass(targetAsm.MainModule, targetClass);
+            injectedClass.Namespace = "Target";
 
             targetAsm.Write(File.OpenWrite("Target.Hooked.exe"));
         }
@@ -39,6 +39,14 @@ namespace DotHook
         {
             Console.WriteLine("Writing a field.");
             self.m_a = value;
+        }
+
+        public class Injected
+        {
+            public Injected()
+            {
+                Console.WriteLine("class created!");
+            }
         }
     }
 }
