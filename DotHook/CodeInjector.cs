@@ -31,6 +31,12 @@ namespace DotHook
 
             var injectMethod = InjectMethod(targetMethod.DeclaringType, hookMethod);
             injectMethod.Attributes = targetMethod.Attributes;
+            if (!targetMethod.IsStatic && hookMethod.IsStatic)
+            {
+                // first argument is keyword "this"
+                injectMethod.HasThis = true;
+                injectMethod.Parameters.RemoveAt(0); // should not appear here
+            }
             // rename original method
             injectMethod.Name = targetMethod.Name;
             targetMethod.Name = hookPrefix + targetMethod.Name;
@@ -53,6 +59,8 @@ namespace DotHook
         static public MethodDefinition CloneMethod(MethodDefinition source)
         {
             var newMethod = new MethodDefinition(source.Name, source.Attributes, source.ReturnType);
+            newMethod.CallingConvention = source.CallingConvention;
+            newMethod.HasThis = source.HasThis;
             
             foreach (var param in source.Parameters)
                 newMethod.Parameters.Add(param);
