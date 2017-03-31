@@ -1,0 +1,6 @@
+.vs/
+bin/
+obj/
+Target/bin/
+Target/obj/
+packages/
