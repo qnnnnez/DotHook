@@ -190,17 +190,17 @@ namespace DotHook
             Type type = method.DeclaringType;
             TypeDefinition typeDefinition = GetDefinitionByType(type);
             return typeDefinition.Methods.Single(m => {
-                if(m.Name != method.Name)
+                if (m.Name != method.Name)
                     return false;
                 var targetParams = method.GetParameters();
                 var currentParams = m.Parameters;
                 if (targetParams.Length != currentParams.Count)
                     return false;
-                for (var i=0;i<currentParams.Count;++i)
+                for (var i = 0; i < currentParams.Count; ++i)
                 {
                     var targetParam = targetParams[i];
                     var currentParam = currentParams[i];
-                    if(targetParam.ParameterType.ToString()!=currentParam.ParameterType.ToString())
+                    if (targetParam.ParameterType.ToString() != currentParam.ParameterType.ToString())
                         return false;
                 }
                 return true;

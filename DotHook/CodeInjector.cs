@@ -10,42 +10,43 @@ namespace DotHook
 {
     static class CodeInjector
     {
-        static public MethodDefinition InjectMethod(TypeDefinition targetClass, MethodDefinition sourceMethod, string methodName=null)
+        static public MethodDefinition InjectMethod(TypeDefinition targetClass, MethodDefinition sourceMethod, string methodName = null)
         {
             if (methodName == null)
                 methodName = sourceMethod.Name;
             var injectMethod = CloneMethod(sourceMethod);
+            injectMethod.Name = methodName;
             targetClass.Methods.Add(injectMethod);
             injectMethod.DeclaringType = targetClass;
             FixReferences(injectMethod);
             return injectMethod;
         }
 
-        static public void HookMethod(MethodDefinition targetMethod, MethodDefinition hookMethod, ReferenceResolver resolver=null, string hookPrefix="__hooked__")
+        static public void HookMethod(MethodDefinition targetMethod, MethodDefinition hookMethod, ReferenceResolver resolver = null, string hookPrefix = "__hooked__")
         {
-            if(resolver == null)
+            if (resolver == null)
             {
                 resolver = new ReferenceResolver();
                 resolver.ScanAssembly(targetMethod.DeclaringType.Module.Assembly);
             }
 
-            var injectMethod = InjectMethod(targetMethod.DeclaringType, hookMethod);
-            injectMethod.Attributes = targetMethod.Attributes;
+            var injectedMethod = InjectMethod(targetMethod.DeclaringType, hookMethod);
+            injectedMethod.Attributes = targetMethod.Attributes;
             if (!targetMethod.IsStatic && hookMethod.IsStatic)
             {
                 // first argument is keyword "this"
-                injectMethod.HasThis = true;
-                injectMethod.Parameters.RemoveAt(0); // should not appear here
+                injectedMethod.HasThis = true;
+                injectedMethod.Parameters.RemoveAt(0); // should not appear here
             }
             // rename original method
-            injectMethod.Name = targetMethod.Name;
+            injectedMethod.Name = targetMethod.Name;
             targetMethod.Name = hookPrefix + targetMethod.Name;
             // replace the original method with the new one
-            resolver.ReplaceAllReferences(targetMethod, injectMethod);
+            resolver.ReplaceAllReferences(targetMethod, injectedMethod);
             // process self-calls
-            for (int i = 0; i < injectMethod.Body.Instructions.Count; ++i)
+            for (int i = 0; i < injectedMethod.Body.Instructions.Count; ++i)
             {
-                var ins = injectMethod.Body.Instructions[i];
+                var ins = injectedMethod.Body.Instructions[i];
                 if (ins.OpCode == OpCodes.Call || ins.OpCode == OpCodes.Callvirt)
                 {
                     if ((ins.Operand as MethodReference).FullName == hookMethod.FullName)
@@ -56,19 +57,67 @@ namespace DotHook
             }
         }
 
+        static public void HookFieldRead(FieldDefinition target, MethodDefinition hookMethod, ReferenceResolver resolver = null, string hookName = null)
+        {
+            if (hookName == null)
+                hookName = target.Name + "__hookread__" + hookMethod.Name;
+
+            if (resolver == null)
+            {
+                resolver = new ReferenceResolver();
+                resolver.ScanAssembly(target.DeclaringType.Module.Assembly);
+            }
+
+            var injectedMethod = InjectMethod(target.DeclaringType, hookMethod, hookName);
+
+            var references = resolver.FindAllReferences(target);
+            foreach (var reference in references)
+            {
+                if (reference.instruction.OpCode == OpCodes.Ldfld || reference.instruction.OpCode == OpCodes.Ldsfld)
+                {
+                    reference.instruction.OpCode = OpCodes.Call;
+                    reference.instruction.Operand = injectedMethod;
+                }
+            }
+        }
+
+        static public void HookFieldWrite(FieldDefinition target, MethodDefinition hookMethod, ReferenceResolver resolver = null, string hookName = null)
+        {
+            if (hookName == null)
+                hookName = target.Name + "__hookwrite__" + hookMethod.Name;
+
+            if (resolver == null)
+            {
+                resolver = new ReferenceResolver();
+                resolver.ScanAssembly(target.DeclaringType.Module.Assembly);
+            }
+
+            var injectedMethod = InjectMethod(target.DeclaringType, hookMethod, hookName);
+
+            var references = resolver.FindAllReferences(target);
+            foreach (var reference in references)
+            {
+                if (reference.instruction.OpCode == OpCodes.Stfld || reference.instruction.OpCode == OpCodes.Stsfld)
+                {
+                    reference.instruction.OpCode = OpCodes.Call;
+                    reference.instruction.Operand = injectedMethod;
+                }
+            }
+        }
+
         static public MethodDefinition CloneMethod(MethodDefinition source)
         {
             var newMethod = new MethodDefinition(source.Name, source.Attributes, source.ReturnType);
             newMethod.CallingConvention = source.CallingConvention;
             newMethod.HasThis = source.HasThis;
-            
+
             foreach (var param in source.Parameters)
                 newMethod.Parameters.Add(param);
             foreach (var variable in source.Body.Variables)
                 newMethod.Body.Variables.Add(variable);
             var il = newMethod.Body.GetILProcessor();
             // copy all instructions
-            foreach(var sourceIns in source.Body.Instructions)
+            foreach (var sourceIns in source.Body.Instructions)
             {
                 var newInstruction = il.Create(OpCodes.Nop);
                 newInstruction.OpCode = sourceIns.OpCode;
@@ -86,14 +135,14 @@ namespace DotHook
             }
             return newMethod;
         }
-        
+
         static private void FixReferences(MethodDefinition method)
         {
             var module = method.Module;
 
             method.ReturnType = module.ImportReference(method.ReturnType);
 
-            for (int i=0; i<method.Body.Instructions.Count; ++i)
+            for (int i = 0; i < method.Body.Instructions.Count; ++i)
             {
                 var ins = method.Body.Instructions[i];
                 if (ins.Operand is MethodReference)

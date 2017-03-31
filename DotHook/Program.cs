@@ -22,21 +22,23 @@ namespace DotHook
             inspector.ScanAssembly(typeof(Program).Assembly.Location);
             inspector.ScanAssembly(typeof(Console).Assembly.Location);
 
-            var targetMethod = inspector.FindMethodByName("Target.Target", "Add");
-            Func<Target.Target, int, int> hook = Program.Hook;
-            var injectingMethod = TypeInspector.GetDefinitionByMethodInfo(hook.Method);
-            CodeInjector.HookMethod(targetMethod, injectingMethod);
+            var targetField = targetAsm.MainModule.Types.Single(t => t.Name == "Target").Fields.Single(f => f.Name == "m_a");
+            CodeInjector.HookFieldRead(targetField, TypeInspector.GetDefinitionByMethodInfo(new Func<Target.Target, int>(HookRead).Method));
+            CodeInjector.HookFieldWrite(targetField, TypeInspector.GetDefinitionByMethodInfo(new Action<Target.Target, int>(HookWrite).Method));
 
-            
             targetAsm.Write(File.OpenWrite("Target.Hooked.exe"));
         }
 
-        static int Hook(Target.Target self, int b)
+        static int HookRead(Target.Target self)
         {
-            Console.WriteLine("m_a={0}, b={1}", self.m_a, b);
-            int result = Hook(self, b);
-            Console.WriteLine("Result={0}", result);
-            return result;
+            Console.WriteLine("Reading a field.");
+            return self.m_a;
+        }
+
+        static void HookWrite(Target.Target self, int value)
+        {
+            Console.WriteLine("Writing a field.");
+            self.m_a = value;
         }
     }
 }

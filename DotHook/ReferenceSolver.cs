@@ -191,8 +191,8 @@ namespace DotHook
                         }
                     }
                 }
-                
-                foreach(var field in type.Fields)
+
+                foreach (var field in type.Fields)
                 {
                     if (ReferenceEquals(target, field.FieldType))
                     {
