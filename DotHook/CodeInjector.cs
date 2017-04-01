@@ -10,6 +10,13 @@ namespace DotHook
 {
     static class CodeInjector
     {
+        /// <summary>
+        /// Inject a clone of source method to target class.
+        /// </summary>
+        /// <param name="target class"></param>
+        /// <param name="source method"></param>
+        /// <param name="method name"></param>
+        /// <returns>the newly injected method</returns>
         static public MethodDefinition InjectMethod(TypeDefinition targetClass, MethodDefinition sourceMethod, string methodName = null)
         {
             if (methodName == null)
@@ -22,6 +29,13 @@ namespace DotHook
             return newMethod;
         }
 
+        /// <summary>
+        /// Inject a clone of source class to target module.
+        /// </summary>
+        /// <param name="target module"></param>
+        /// <param name="source class"></param>
+        /// <param name="class name"></param>
+        /// <returns>the newly injected class</returns>
         static public TypeDefinition InjectClass(ModuleDefinition targetModule, TypeDefinition sourceClass, string className = null)
         {
             if (className == null)
@@ -41,6 +55,13 @@ namespace DotHook
             return newClass;
         }
 
+        /// <summary>
+        /// Inject a clone of source to target class. The injected class will be nested.
+        /// </summary>
+        /// <param name="target class"></param>
+        /// <param name="source class"></param>
+        /// <param name="class name"></param>
+        /// <returns>the newly injected class</returns>
         static public TypeDefinition InjectClass(TypeDefinition targetClass, TypeDefinition sourceClass, string className = null)
         {
             if (className == null)
@@ -58,6 +79,14 @@ namespace DotHook
             return newClass;
         }
 
+        /// <summary>
+        /// Replace target method with your hook method.
+        /// To call the original method, just call hook method from the hook method.
+        /// </summary>
+        /// <param name="target method"></param>
+        /// <param name="hook method"></param>
+        /// <param name="resolver">This is used to find all instructions that call the target method.</param>
+        /// <param name="hook prefix">This will be used as the prefix of the original target method.</param>
         static public void HookMethod(MethodDefinition targetMethod, MethodDefinition hookMethod, ReferenceResolver resolver = null, string hookPrefix = "__hooked__")
         {
             if (resolver == null)
@@ -93,6 +122,16 @@ namespace DotHook
             }
         }
 
+        /// <summary>
+        /// Hook a field by injecting a "getter" method.
+        /// If target field is a static field, your getter should accept no arguments.
+        /// If target field is not a static field, your getter show accept a object having the field.
+        /// Return value of your getter method will be used instead of the original field value.
+        /// </summary>
+        /// <param name="target field"></param>
+        /// <param name="hook method">your "getter" method.</param>
+        /// <param name="resolver">This is used to find every IL instruction that reads the field.</param>
+        /// <param name="hook name"></param>
         static public void HookFieldRead(FieldDefinition target, MethodDefinition hookMethod, ReferenceResolver resolver = null, string hookName = null)
         {
             if (hookName == null)
@@ -117,6 +156,16 @@ namespace DotHook
             }
         }
 
+        /// <summary>
+        /// Hook a field by injecting a static "setter" method.
+        /// If target field is a static field, your setter should accept a value that is originally used to write the field.
+        /// If target field is not a static field, your setter should accept a object having the field followed by a value.
+        /// Your setter method should not have any return value.
+        /// </summary>
+        /// <param name="target field"></param>
+        /// <param name="hook method">your "setter"</param>
+        /// <param name="resolver">This is used to find every IL instruction that writes the field.</param>
+        /// <param name="hookName"></param>
         static public void HookFieldWrite(FieldDefinition target, MethodDefinition hookMethod, ReferenceResolver resolver = null, string hookName = null)
         {
             if (hookName == null)
