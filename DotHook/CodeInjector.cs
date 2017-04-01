@@ -264,6 +264,12 @@ namespace DotHook
 
             type.BaseType = module.ImportReference(type.BaseType);
 
+            for (int i=0; i<type.Interfaces.Count; ++i)
+            {
+                var @interface = type.Interfaces[i];
+                type.Interfaces[i] = new InterfaceImplementation(module.ImportReference(@interface.InterfaceType));
+            }
+
             foreach (var field in type.Fields)
                 field.FieldType = module.ImportReference(field.FieldType);
 

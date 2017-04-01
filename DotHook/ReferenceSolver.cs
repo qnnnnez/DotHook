@@ -156,12 +156,12 @@ namespace DotHook
             }
         }
 
-        public void ReplaceAllReferences(InterfaceImplementation origin, InterfaceImplementation alternative)
+        public void ReplaceAllReferences(InterfaceImplementation origin, InterfaceImplementation alternative, bool importing = false)
         {
             foreach (var result in FindAllReferences(origin))
             {
                 int i = result.type.Interfaces.IndexOf(origin);
-                result.type.Interfaces[i] = alternative;
+                result.type.Interfaces[i] = importing ? new InterfaceImplementation(result.type.Module.ImportReference(origin.InterfaceType)) : alternative;
             }
         }
 
