@@ -196,7 +196,10 @@ namespace DotHook
                     if (ReferenceEquals(target, @interface))
                         result.Add(new InterfaceResolveResult(type));
 
-                foreach (var method in type.Methods)
+                foreach (var method in type.Methods
+                    .Union(from @event in type.Events select @event.AddMethod)
+                    .Union(from @event in type.Events select @event.RemoveMethod)
+                    .Union(from @event in type.Events from method in @event.OtherMethods select method))
                 {
                     if (ReferenceEquals(target, method.ReturnType))
                         result.Add(new ReturnTypeResolveResult(method));

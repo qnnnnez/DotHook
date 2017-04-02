@@ -215,6 +215,17 @@ namespace DotHook
                 newClass.Methods.Add(newMethod);
             }
 
+            foreach (var @event in source.Events)
+            {
+                var newEvent = new EventDefinition(@event.Name, @event.Attributes, @event.EventType);
+                newEvent.AddMethod = CloneMethod(@event.AddMethod);
+                newEvent.RemoveMethod = CloneMethod(@event.RemoveMethod);
+                foreach (var method in @event.OtherMethods)
+                    newEvent.OtherMethods.Add(CloneMethod(method));
+                newEvent.DeclaringType = newClass;
+                newClass.Events.Add(newEvent);
+            }
+
             foreach (var @class in source.NestedTypes)
             {
                 var newNestedClass = CloneClass(@class);
